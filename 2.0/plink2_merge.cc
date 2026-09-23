@@ -8175,6 +8175,10 @@ PglErr PmergePass(const PmergeInfo* pmip, const SampleIdInfo* siip, const ChrInf
     // multipass merge is working.
     if (fileset_ct <= ((kMaxOpenFiles - 3) / 2)) {
       reterr = PmergePassSingle(pmip, siip, cip, *input_filesets_ptr, missing_varid_match, info_keys, info_keys_htable, sample_ct, fam_cols, fileset_ct, psam_linebuf_capacity, missing_varid_match_slen, info_key_ct, info_keys_htable_size, info_conflict_present, input_missing_geno_char, max_thread_ct, sort_vars_mode, varid_templatep, varid_multi_templatep, varid_multi_nonsnp_templatep, outname, outname_end);
+      // This pass consumes the list, and Pmerge() only cleans up what is
+      // still attached to it, so free the heap-allocated variant IDs (and
+      // any temporary filesets left by an earlier pass) here.
+      CleanupFilesetLl(*input_filesets_ptr, &reterr);
       *input_filesets_ptr = nullptr;
       goto PmergePass_ret_1;
     }
