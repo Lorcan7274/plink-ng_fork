@@ -15870,6 +15870,7 @@ int main(int argc, char** argv) {
   free_cond(pc.perm_pheno_name);
   CleanupMeta(&meta_info);
   free_cond(king_cutoff_fprefix);
+  free_cond(mgf_pheno_fname);
   free_cond(pc.zero_cluster_phenoname);
   free_cond(pc.zero_cluster_fname);
   free_cond(pc.rename_chrs_fname);
