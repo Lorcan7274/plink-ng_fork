@@ -52,6 +52,17 @@ jobs:
       - name: Determine parallelism
         run: echo "NPROC=$(getconf _NPROCESSORS_ONLN)" >> "$GITHUB_ENV"
 
+      # The default build links LAPACK, so the NOLAPACK code paths are never
+      # compiled.  Compile every plink2 source as NO_LAPACK=1 would, without
+      # generating code: a few seconds, and it catches errors that only show
+      # up in that configuration.  It doesn't link.
+      - name: Check that PLINK 2.0 compiles without LAPACK
+        if: runner.os == 'Linux'
+        working-directory: 2.0
+        run: |
+          printf '%s\n' *.cc include/*.cc | xargs -P "$NPROC" -n 1 \
+            g++ -std=c++17 -fsyntax-only -DNOLAPACK -DZSTD_MULTITHREAD -Ilibdeflate
+
       - name: Build PLINK 2.0 and pgen_compress
         working-directory: 2.0/build_dynamic
         run: make -j"$NPROC"
