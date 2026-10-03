@@ -81,13 +81,21 @@ jobs:
         working-directory: 2.0/Tests
         env:
           # Leak detection is on by default on Linux, but say so; halt_on_error
-          # makes UBSan reports fatal instead of just printed.  Reports are
-          # written to files, which the next step checks: the tests that expect
-          # plink2 to fail accept any exit status from 1 to 127, and some
-          # discard stderr, so a report from one of those runs would otherwise
-          # pass unnoticed.
+          # makes UBSan reports fatal instead of just printed.
+          #
+          # The tests that expect plink2 to fail accept any exit status from 1
+          # to 127, and some discard stderr, so a sanitizer report from one of
+          # those runs would pass unnoticed.  ASan and LeakSanitizer reports
+          # are therefore written to files, which the next step checks.  UBSan
+          # cannot do the same here: GCC links it as a separate runtime that
+          # runs as an ASan plugin, ignores log_path and always prints to
+          # stderr (linking the runtimes statically fixes that, but makes
+          # every plink2 run under ASan about 20 times slower).  Instead,
+          # abort_on_error turns a UBSan report into SIGABRT, which the tests
+          # that check for a signal reject; the ones that accept any failure
+          # still miss it.
           ASAN_OPTIONS: detect_leaks=1:log_path=${{ github.workspace }}/2.0/Tests/sanitizer-reports/asan
-          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1:log_path=${{ github.workspace }}/2.0/Tests/sanitizer-reports/ubsan
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1:abort_on_error=1
         run: |
           mkdir -p sanitizer-reports
           ./run_tests.sh "$GITHUB_WORKSPACE/2.0/build_san"
