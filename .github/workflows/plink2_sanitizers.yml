@@ -81,15 +81,39 @@ jobs:
         working-directory: 2.0/Tests
         env:
           # Leak detection is on by default on Linux, but say so; halt_on_error
-          # makes UBSan reports fatal instead of just printed.
-          ASAN_OPTIONS: detect_leaks=1
-          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
-        run: ./run_tests.sh "$GITHUB_WORKSPACE/2.0/build_san"
+          # makes UBSan reports fatal instead of just printed.  Reports are
+          # written to files, which the next step checks: the tests that expect
+          # plink2 to fail accept any exit status from 1 to 127, and some
+          # discard stderr, so a report from one of those runs would otherwise
+          # pass unnoticed.
+          ASAN_OPTIONS: detect_leaks=1:log_path=${{ github.workspace }}/2.0/Tests/sanitizer-reports/asan
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1:log_path=${{ github.workspace }}/2.0/Tests/sanitizer-reports/ubsan
+        run: |
+          mkdir -p sanitizer-reports
+          ./run_tests.sh "$GITHUB_WORKSPACE/2.0/build_san"
+
+      - name: Fail on sanitizer reports
+        if: always()
+        working-directory: 2.0/Tests
+        run: |
+          shopt -s nullglob
+          reports=(sanitizer-reports/*)
+          for f in "${reports[@]}"; do
+            echo "::group::$f"
+            cat "$f"
+            echo "::endgroup::"
+          done
+          if (( ${#reports[@]} )); then
+            echo "::error::${#reports[@]} sanitizer report(s); see above."
+            exit 1
+          fi
 
       - name: Upload test logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: plink2-sanitizer-logs
-          path: 2.0/Tests/**/*.log
+          path: |
+            2.0/Tests/**/*.log
+            2.0/Tests/sanitizer-reports/
           if-no-files-found: ignore
